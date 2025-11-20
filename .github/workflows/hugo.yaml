@@ -24,12 +24,13 @@ jobs:
     runs-on: ubuntu-latest
     env:
       HUGO_VERSION: 0.152.2
+
     steps:
       - name: 安装Hugo CLI
         run: |
-          wget --no-check-certificate -O ${{ runner.temp }}/hugo.deb https://github.com/gohugoio/hugo/releases/download/v${HUGO_VERSION}/hugo_extended_${HUGO_VERSION}_linux-amd64.deb \
-          && sudo dpkg -i ${{ runner.temp }}/hugo.deb \
-          && hugo version
+          wget --no-check-certificate -O ${{ runner.temp }}/hugo.deb https://github.com/gohugoio/hugo/releases/download/v${HUGO_VERSION}/hugo_extended_${HUGO_VERSION}_linux-amd64.deb
+          sudo dpkg -i ${{ runner.temp }}/hugo.deb
+          hugo version
 
       - name: 安装Dart Sass
         run: sudo snap install dart-sass --classic
@@ -47,20 +48,16 @@ jobs:
       - name: 安装Node.js依赖
         run: "[[ -f package-lock.json || -f npm-shrinkwrap.json ]] && npm ci || true"
 
-      - name: 使用Hugo构建（修复命令格式！）
+      - name: 使用Hugo构建
         env:
           HUGO_ENVIRONMENT: production
           HUGO_ENV: production
-        run: hugo --gc --minify --verbose --baseURL "${{ steps.pages.outputs.base_url }}/"
-        # 关键修复：将多行命令合并为单行，或用正确的换行转义（下面两种写法都可以）
-        # 写法1（单行，推荐）：直接把所有参数写在一行，避免换行问题
-        # 写法2（多行，需加反斜杠且反斜杠后无空格）：
-        # run: |
-        #   hugo \
-        #     --gc \
-        #     --minify \
-        #     --verbose \
-        #     --baseURL "${{ steps.pages.outputs.base_url }}/"
+        run: |
+          hugo \
+            --gc \
+            --minify \
+            --verbose \
+            --baseURL "${{ steps.pages.outputs.base_url }}/"
 
       - name: 上传构建产物
         uses: actions/upload-pages-artifact@v3
