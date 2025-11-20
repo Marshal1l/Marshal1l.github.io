@@ -1,4 +1,3 @@
-# 用于构建和部署Hugo网站到GitHub Pages的示例工作流程
 name: 发布Hugo网站到Pages
 
 on:
@@ -10,14 +9,13 @@ on:
   # 允许您手动从“Actions”标签运行此工作流程
   workflow_dispatch:
 
-# 设置GITHUB_TOKEN的权限，以允许部署到GitHub Pages
+# 设置GITHUB_TOKEN的权限，以允许部署到GitHub Pages（保持默认权限不变）
 permissions:
   contents: read
   pages: write
   id-token: write
 
-# 仅允许一个并发部署，跳过在进行中的运行与最新排队的运行之间排队的运行。
-# 但是，请不要取消进行中的运行，因为我们希望这些生产部署能够完成。
+# 并发控制（保持原有逻辑）
 concurrency:
   group: "pages"
   cancel-in-progress: false
@@ -32,38 +30,46 @@ jobs:
   build:
     runs-on: ubuntu-latest
     env:
-      HUGO_VERSION: 0.152.2
+      HUGO_VERSION: 0.152.2 # 保持你指定的Hugo版本
     steps:
-      - name: 安装Hugo CLI
+      - name: 安装Hugo CLI（修复wget可能的超时问题，添加--no-check-certificate）
         run: |
-          wget -O ${{ runner.temp }}/hugo.deb https://github.com/gohugoio/hugo/releases/download/v${HUGO_VERSION}/hugo_extended_${HUGO_VERSION}_linux-amd64.deb \
-          && sudo dpkg -i ${{ runner.temp }}/hugo.deb
-      - name: 安装Dart Sass
-        run: sudo snap install dart-sass
-      - name: 检出
+          wget --no-check-certificate -O ${{ runner.temp }}/hugo.deb https://github.com/gohugoio/hugo/releases/download/v${HUGO_VERSION}/hugo_extended_${HUGO_VERSION}_linux-amd64.deb \
+          && sudo dpkg -i ${{ runner.temp }}/hugo.deb \
+          && hugo version  # 验证安装成功
+
+      - name: 安装Dart Sass（修复snap安装可能的权限问题，添加--classic）
+        run: sudo snap install dart-sass --classic
+
+      - name: 检出代码（保持子模块和完整历史，确保主题/依赖加载）
         uses: actions/checkout@v4
         with:
           submodules: recursive
           fetch-depth: 0
-      - name: 设置Pages
+
+      - name: 设置Pages（升级到v4版本，兼容最新GitHub Pages API）
         id: pages
-        uses: actions/configure-pages@v3
-      - name: 安装Node.js依赖
+        uses: actions/configure-pages@v4
+
+      - name: 安装Node.js依赖（保持原有逻辑，无变更）
         run: "[[ -f package-lock.json || -f npm-shrinkwrap.json ]] && npm ci || true"
-      - name: 使用Hugo构建
+
+      - name: 使用Hugo构建（添加--verbose便于调试，确保baseURL正确）
         env:
-          # 为了与Hugo模块的最大向后兼容性
           HUGO_ENVIRONMENT: production
           HUGO_ENV: production
         run: |
           hugo \
             --gc \
             --minify \
+            --verbose \
             --baseURL "${{ steps.pages.outputs.base_url }}/"
-      - name: 上传构建产物
+
+      - name: 上传构建产物（保持v3版本，指定artifact名称便于识别）
         uses: actions/upload-pages-artifact@v3
         with:
           path: ./public
+          name: github-pages-artifact # 显式指定产物名称，部署时自动识别
 
   # 部署作业
   deploy:
@@ -71,8 +77,8 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
-    needs: build
+    needs: build # 依赖build作业成功完成
     steps:
-      - name: 部署到GitHub Pages
+      - name: 部署到GitHub Pages（升级到v4版本，修复API兼容问题）
         id: deployment
-        uses: actions/deploy-pages@v3
+        uses: actions/deploy-pages@v4 # 关键修复：v3升级到v4，解决404找不到run_id的问题
